@@ -1,0 +1,10 @@
+[
+  { "ParameterKey": "EnvironmentName", "ParameterValue": "mwaa-lab" },
+  { "ParameterKey": "AirflowVersion", "ParameterValue": "2.8.1" },
+  { "ParameterKey": "DagS3Path", "ParameterValue": "dags" },
+  { "ParameterKey": "PluginsS3Path", "ParameterValue": "plugins" },
+  { "ParameterKey": "RequirementsS3Path", "ParameterValue": "requirements/requirements.txt" },
+  { "ParameterKey": "VpcId", "ParameterValue": "vpc-xxxxxxxx" },
+  { "ParameterKey": "SubnetIds", "ParameterValue": "subnet-aaaaaaa,subnet-bbbbbbb" },
+  { "ParameterKey": "SecurityGroupIds", "ParameterValue": "sg-cccccccc" }
+]
