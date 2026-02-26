@@ -1,0 +1,4 @@
+.venv/
+.env
+PySocks-1.7.1.tar.gz
+__pycache__

@@ -1,0 +1,21 @@
+# Keep empty for now.
+# In MWAA you’d upload this to S3 and set RequirementsS3Path accordingly.
+
+
+# This file defines additional Python dependencies for Airflow.
+#
+# Why is it empty?
+# - The local Docker image (apache/airflow:2.8.4-python3.11) already includes
+#   Airflow and its core dependencies.
+# - The current DAG only uses built-in Airflow modules.
+#
+# When will this be used?
+# - If we add external libraries (e.g. pandas, requests, database drivers).
+# - When deploying to MWAA, this file is uploaded to S3 and installed
+#   inside the managed Airflow environment.
+#
+# Keeping this file in the repo ensures:
+# - Dependency version control
+# - Reproducibility across environments
+# - A clear contract between local and MWAA environments
+

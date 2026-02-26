@@ -1,0 +1,167 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "MWAA lab skeleton: S3 + IAM + Logs + MWAA Environment (networking via parameters)"
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: mwaa-lab
+    Description: Name for the MWAA environment
+
+  AirflowVersion:
+    Type: String
+    Default: "2.8.1"
+    Description: MWAA Airflow version (set to what your region/account supports)
+
+  DagS3Path:
+    Type: String
+    Default: dags
+    Description: S3 prefix for DAGs (no leading slash)
+
+  PluginsS3Path:
+    Type: String
+    Default: plugins
+    Description: S3 prefix for plugins (no leading slash)
+
+  RequirementsS3Path:
+    Type: String
+    Default: requirements/requirements.txt
+    Description: S3 key for requirements.txt
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Existing VPC ID for MWAA
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnet IDs for MWAA (typically 2 in different AZs)
+
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: Security group IDs for MWAA
+
+Resources:
+  MwaaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  MwaaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - airflow.amazonaws.com
+                - airflow-env.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: mwaa-execution-basic
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # S3 access to your MWAA bucket paths
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt MwaaBucket.Arn
+
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub "${MwaaBucket.Arn}/*"
+
+              # CloudWatch Logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:GetLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Resource: "*"
+
+              # Metrics (optional but common)
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+
+  # Log groups (you can expand these later)
+  AirflowSchedulerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/mwaa/${EnvironmentName}/scheduler"
+      RetentionInDays: 14
+
+  AirflowTaskLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/mwaa/${EnvironmentName}/task"
+      RetentionInDays: 14
+
+  AirflowWebserverLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/mwaa/${EnvironmentName}/webserver"
+      RetentionInDays: 14
+
+  MwaaEnvironment:
+    Type: AWS::MWAA::Environment
+    Properties:
+      Name: !Ref EnvironmentName
+      AirflowVersion: !Ref AirflowVersion
+      SourceBucketArn: !GetAtt MwaaBucket.Arn
+      DagS3Path: !Ref DagS3Path
+      PluginsS3Path: !Ref PluginsS3Path
+      RequirementsS3Path: !Ref RequirementsS3Path
+      ExecutionRoleArn: !GetAtt MwaaExecutionRole.Arn
+
+      NetworkConfiguration:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds
+
+      LoggingConfiguration:
+        SchedulerLogs:
+          Enabled: true
+          LogLevel: INFO
+        TaskLogs:
+          Enabled: true
+          LogLevel: INFO
+        WebserverLogs:
+          Enabled: true
+          LogLevel: INFO
+        WorkerLogs:
+          Enabled: true
+          LogLevel: INFO
+        DagProcessingLogs:
+          Enabled: true
+          LogLevel: INFO
+
+      EnvironmentClass: mw1.small
+      WebserverAccessMode: PRIVATE_ONLY
+
+Outputs:
+  BucketName:
+    Value: !Ref MwaaBucket
+
+  ExecutionRoleArn:
+    Value: !GetAtt MwaaExecutionRole.Arn
+
+  MwaaEnvironmentName:
+    Value: !Ref MwaaEnvironment
